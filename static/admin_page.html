@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Route2Vel</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" href="bootstrap-icons.css" />
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="socket.io.js"></script>
+    <script src="/static/js/admin-management.js"></script>
+    <style>
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .navbar h1 {
+            color: white;
+            margin: 0;
+        }
+        #queue-stats {
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        #queue-stats h5 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #queue-stats h3 {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        .user-info {
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info .badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+        }
+    </style>
+</head>
+
+<body onload="initAdminPage()">
+    <nav class="navbar">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center w-100">
+                <h1><i class="bi bi-speedometer2"></i> Admin Dashboard</h1>
+                <div class="user-info">
+                    <span id="user-display">
+                        <i class="bi bi-person-circle"></i> 
+                        <span id="username-display">Admin</span>
+                    </span>
+                    <span class="badge">
+                        <i class="bi bi-shield-check"></i> Administrator
+                    </span>
+                    <button type="button" class="btn btn-light btn-sm" onclick="window.location.href='/route'">
+                        <i class="bi bi-map"></i> User View
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="window.location.href='/admin/logout'">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div id="feat_div" class="container-fluid">
+            <ul class="nav nav-tabs" id="feat_navbar" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="task-tab" data-bs-toggle="tab" data-bs-target="#task"
+                        type="button" role="tab" aria-controls="task" aria-selected="true">
+                        <i class="bi bi-list-task"></i> Task Queue
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="map-tab" data-bs-toggle="tab" data-bs-target="#map"
+                        type="button" role="tab" aria-controls="map" aria-selected="false">
+                        <i class="bi bi-map"></i> Maps
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users"
+                        type="button" role="tab" aria-controls="users" aria-selected="false">
+                        <i class="bi bi-people"></i> Users
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="admin-content">
+                <!-- Tasks Tab -->
+                <div class="tab-pane fade show active" id="task" role="tabpanel" aria-labelledby="task-tab">
+                    <div class="row align-items-start mt-3">
+                        <div class="col-auto">
+                            <button type="button" onclick="emptyElement('task-list'); fetchAllTasks(); setMessage('', 'task-update-div');" 
+                                    class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" onclick="deleteAllTasks()" class="btn btn-danger">
+                                <i class="bi bi-trash3"></i> Delete All
+                            </button>
+                        </div>
+                        <div class="col">
+                            <div id="task-update-div" class="text-success"></div>
+                        </div>
+                    </div>
+                    <div class="row align-items-start mt-3" id="task-list">
+                        <!-- Tasks will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Maps Tab -->
+                <div class="tab-pane fade" id="map" role="tabpanel" aria-labelledby="map-tab">
+                    <div class="row align-items-start mt-3">
+                        <div class="col-auto">
+                            <button type="button" onclick="emptyElement('map-list'); fetchActiveMap();" 
+                                    class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row align-items-start mt-3" id="map-list">
+                        <!-- Maps will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Users Tab -->
+                <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                    <div class="row align-items-start mt-3">
+                        <div class="col-auto">
+                            <button type="button" onclick="fetchUsers()" class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row align-items-start mt-3" id="users-list">
+                        <!-- Users will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and display current user info
+        fetch('/api/user')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('username-display').textContent = data.user.username;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching user info:', error);
+            });
+        
+        // Function to fetch and display users
+        function fetchUsers() {
+            fetch('/api/admin/users')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayUsers(data.users);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching users:', error);
+                });
+        }
+        
+        function displayUsers(users) {
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = '';
+            
+            const table = document.createElement('table');
+            table.classList.add('table', 'table-striped', 'table-hover');
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created</th>
+                    <th>Last Login</th>
+                    <th>Tasks</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                const createdAt = new Date(user.created_at).toLocaleDateString();
+                const lastLogin = user.last_login ? new Date(user.last_login).toLocaleString() : 'Never';
+                const role = user.is_admin ? 
+                    '<span class="badge bg-danger">Admin</span>' : 
+                    '<span class="badge bg-primary">User</span>';
+                
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${role}</td>
+                    <td>${createdAt}</td>
+                    <td>${lastLogin}</td>
+                    <td>${user.task_count || 0}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            table.appendChild(tbody);
+            usersList.appendChild(table);
+        }
+    </script>
+</body>
+</html>

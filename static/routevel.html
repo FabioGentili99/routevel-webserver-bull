@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Acc2Twin: Robopac</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" href="bootstrap-icons.css" />
+    <link rel="stylesheet" href="leaflet.css" />
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="svg-pan-zoom.min.js"></script>
+    <script src="socket.io.js"></script>
+    <script src="leaflet.js"></script>
+    <script src="/static/js/dom-management.js"></script>
+    <script src="/static/js/socket-interaction.js"></script>
+    <style>
+        #map {
+            height: 35vh;
+        }
+        #map2 {
+            height: 35vh;
+        }
+        #output-console {
+            background: black;
+            color: #cccccc;
+            font-family: 'Cascadia Code', sans-serif;
+            font-size: medium;
+            height: 20vh;
+        }
+        #output-console-by-addr {
+            background: black;
+            color: #cccccc;
+            font-family: 'Cascadia Code', sans-serif;
+            font-size: medium;
+            height: 20vh;
+        }        
+        #wc-dataset {
+            background: gray;
+            color: #cccccc;
+            font-family: 'Cascadia Code', sans-serif;
+            font-size: medium;
+            height: 20vh;
+        }                        
+        #wc-dataset-by-addr {
+            background: gray;
+            color: #cccccc;
+            font-family: 'Cascadia Code', sans-serif;
+            font-size: medium;
+            height: 20vh;
+        }
+        .navbar-top {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+        .user-info .username {
+            font-weight: 500;
+        }
+        .user-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+
+<body onload="initDom(); initSocket(); loadUserInfo()">
+    <!-- Top Navigation Bar -->
+    <nav class="navbar-top">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h3 class="mb-0" style="color: white;">
+                        <i class="bi bi-geo-alt-fill"></i> Route2Vel
+                    </h3>
+                </div>
+                <div class="col-auto">
+                    <div class="user-info">
+                        <i class="bi bi-person-circle" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <div class="username" id="username-display">Loading...</div>
+                            <div class="user-badge" id="user-role">User</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-light btn-sm" id="admin-btn" style="display: none;" onclick="window.location.href='/admin'">
+                            <i class="bi bi-speedometer2"></i> Admin Panel
+                        </button>
+                        <button type="button" class="btn btn-light btn-sm" onclick="window.location.href='/auth/logout'">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+              <h1>Estrazione dati percorso</h1>
+            </div>
+        </div>
+        <br>
+        <div id="input_div" class="container w-100">
+            <ul class="nav nav-tabs" id="input_navbar" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="geo-input-tab" data-bs-toggle="tab" data-bs-target="#geo-input"
+                        type="button" role="tab" aria-controls="geo-input" aria-selected="true">Coordinate Geografiche</button>
+                </li>
+                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="address-input-tab" data-bs-toggle="tab" data-bs-target="#address-input"
+                        type="button" role="tab" aria-controls="address-input" aria-selected="false">Indirizzo</button>
+                </li> 
+            </ul>
+            <div class="tab-content" id="input-div">
+                <div class="tab-pane fade show active" id="geo-input" role="tabpanel" aria-labelledby="geo-input-tab">
+                    <div class="row align-items-start">
+                        <div class="col-7">
+                            <form id="geo-input-form" onsubmit="submitForm(event)">
+                                <div class="row align-items-start">
+                                    <div class="col-6">
+                                        <div class="form-group py-3">
+                                            <label class="pb-3"><b>Punto di Partenza</b></label> <br>
+                                            <label for="start-latitude">Latitudine</label>
+                                            <input type="text" class="form-control w-75" id="start-latitude" aria-describedby="start-latitude-tip" placeholder="Latitudine" required>
+                                            <small id="start-latitude-tip" class="form-text text-muted">Latitudine del punto di partenza</small>
+                                        </div>
+                                        <div class="form-group py-3">
+                                            <label for="start-longitude">Longitudine</label>
+                                            <input type="text" class="form-control w-75" id="start-longitude" aria-describedby="start-longitude-tip" placeholder="Longitudine" required>
+                                            <small id="start-longitude-tip" class="form-text text-muted">Longitudine del punto di partenza</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-group py-3">
+                                            <label class="pb-3"><b>Punto di Arrivo</b></label> <br>
+                                            <label for="end-latitude">Latitudine</label>
+                                            <input type="text" class="form-control w-75" id="end-latitude" aria-describedby="end-latitude-tip" placeholder="Latitudine" required>
+                                            <small id="end-latitude-tip" class="form-text text-muted">Latitudine del punto di arrivo</small>
+                                        </div>
+                                        <div class="form-group py-3">
+                                            <label for="end-longitude">Longitudine</label>
+                                            <input type="text" class="form-control w-75" id="end-longitude" aria-describedby="end-longitude-tip" placeholder="Longitudine" required>
+                                            <small id="end-longitude-tip" class="form-text text-muted">Longitudine del punto di arrivo</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row align-items-start" id="intermediate-points-input">
+                                    <label class="pb-3"><b>Punti Intermedi</b></label><br>
+                                    <div class="row align-items-start" id="pi1">
+                                        <div class="col-5 pb-2">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control w-100" id="pi1-latitude" aria-describedby="pi1-latitude-tip" placeholder="Latitudine">
+                                            </div>
+                                        </div>
+                                        <div class="col-5 pb-2">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control w-100" id="pi1-longitude" aria-describedby="pi1-longitude-tip" placeholder="Longitudine">
+                                            </div>
+                                        </div>
+                                        <div class="col-2 pb-2">
+                                            <div class="form-group">
+                                                <button class="btn btn-success" type="button" onclick="addIntermediatePoints('pi1')" id="pi1-button-success"> <i class="bi bi-plus-lg"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row align-items-start">
+                                    <div class="col-5">
+                                        <div class="form-group py-3">
+                                            <label for="sampling-distance">Campionamento</label>
+                                            <input type="number" class="form-control w-20" id="sampling-distance" aria-describedby="sampling-distance-tip" placeholder="Distanza di campionamento" value="5">
+                                            <small id="sampling-distance-tip" class="form-text text-muted">Distanza di campionamento in metri</small>
+                                        </div>
+                                    </div>
+                                    <div class="row align-items-start">
+                                        <div class="col-4">
+                                            <button type="submit" class="btn btn-primary w-100" id="submit-button">Submit</button>
+                                        </div>
+                                        <div class="col-6" id="progress-div" hidden>
+                                            <div class="row align-items-start">
+                                                <div class="col-12">
+                                                    <div class="progress" role="progressbar" aria-label="progress-bar-label" id="progress-bar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                                                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 10%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row align-items-start">
+                                                <div class="col-12">
+                                                    <div id="update-div"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-5">
+                            <div class="row align-items-start pt-3">
+                                <div class="col-12" id="map"></div>
+                            </div>
+                            <div class="row align-items-start pt-3">
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="options" id="mode-start" autocomplete="off" onchange="setMapMode('start')" checked>
+                                    <label class="btn btn-outline-primary" for="mode-start"><i class="bi bi-align-start"></i></label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="options" id="mode-intermediate" onchange="setMapMode('intermediate')" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="mode-intermediate"><i class="bi bi-align-middle"></i></label>                                    
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="options" id="mode-end" onchange="setMapMode('end')" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="mode-end"><i class="bi bi-align-end"></i></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row align-items-start mt-5">
+                        <h3>Output</h3>
+                        <div class="col-8 rounded overflow-auto" id="output-console">
+                            <div>
+                                Empty...
+                            </div>
+                        </div>
+                        <div class="col-8 rounded overflow-auto" id="wc-dataset">
+                            <div>
+
+                            </div>
+                        </div>                        
+                    </div>
+                    <div class="row align-items-start mt-5" id="results_div" hidden>
+                        <h3>Results</h3>
+                        <ul class="nav nav-tabs" id="results_tablist" role="tablist">
+        
+                        </ul>
+                        <div class="tab-content" id="results_tabcontent">
+        
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-content" id="input-div-by-addr">
+                <div class="tab-pane fade" id="address-input" role="tabpanel" aria-labelledby="address-input-tab">
+                    <div class="row align-items-start">
+                        <div class="col-7">
+                            <form id="address-input-form" onsubmit="submitFormByAddress(event)">
+                                        <div class="row align-items-start">
+                                            <div class="col-6">
+                                                <div class="form-group py-3">
+                                                    <label class="pb-3"><b>Punto di Partenza</b></label> <br>
+                                                    <label for="start-ind">Indirizzo</label>
+                                                    <input type="text" class="form-control w-100" id="start-ind" aria-describedby="start-ind-tip" placeholder="Indirizzo" required>
+                                                    <small id="start-ind-tip" class="form-text text-muted">Indirizzo punto di partenza</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-group py-3">
+                                                    <label class="pb-3"><b>Punto di Arrivo</b></label> <br>
+                                                    <label for="end-ind">Indirizzo</label>
+                                                    <input type="text" class="form-control w-100" id="end-ind" aria-describedby="end-ind-tip" placeholder="Indirizzo" required>
+                                                    <small id="end-ind-tip" class="form-text text-muted">Indirizzo del punto di arrivo</small>
+                                                </div>
+                                             </div>
+                                        </div>
+                                        <div class="row align-items-start" id="intermediate-ind-input">
+                                            <label class="pb-3"><b>Punti Intermedi</b></label><br>
+                                            <div class="row align-items-start" id="pii1">
+                                                <div class="col-6 pb-2">
+                                                    <div class="form-group">
+                                                        <input type="text" class="form-control w-100" id="pii1-ind" aria-describedby="pii1-ind-tip" placeholder="Indirizzo">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-2 pb-2">
+                                                    <div class="form-group">
+                                                        <button class="btn btn-success" type="button" onclick="addIntermediateAddress('pii1')" id="pii1-button-success"> <i class="bi bi-plus-lg"></i></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row align-items-start">
+                                            <div class="col-5">
+                                                <div class="form-group py-3">
+                                                    <label for="sampling-distance2">Campionamento</label>
+                                                    <input type="number" class="form-control w-10" id="sampling-distance2" aria-describedby="sampling-distance2-tip" placeholder="Distanza di campionamento" value="5">
+                                                    <small id="sampling-distance2-tip" class="form-text text-muted">Distanza di campionamento in metri</small>
+                                                </div>
+                                            </div>
+                                            <div class="row align-items-start">
+                                                <div class="col-4">
+                                                    <button type="submit" class="btn btn-primary w-100" id="submit-button-addr">Submit</button>
+                                                </div>
+                                                <div class="col-6" id="progress-div-addr" hidden>
+                                                    <div class="row align-items-start">
+                                                        <div class="col-12">
+                                                            <div class="progress" role="progressbar" aria-label="progress-bar-label" id="progress-bar-addr" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">
+                                                                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 10%"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-start">
+                                                        <div class="col-12">
+                                                            <div id="update-div-addr"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                            </form>
+                        </div>
+                        <div class="col-5">
+                                    <div class="row align-items-start pt-3">
+                                        <div class="col-12" id="map2"></div>
+                                    </div>
+                        </div>                                
+                    </div>
+                    <div class="row align-items-start mt-5">
+                        <h3>Output</h3>
+                        <div class="col-8 rounded overflow-auto" id="output-console-by-addr">
+                            <div>
+                                Empty...
+                            </div>
+                        </div>
+                        <div class="col-8 rounded overflow-auto" id="wc-dataset-by-addr">
+                            <div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row align-items-start mt-5" id="results_div_addr" hidden>
+                        <h3>Results</h3>
+                        <ul class="nav nav-tabs" id="results_tablist-by-addr" role="tablist">
+        
+                        </ul>
+                        <div class="tab-content" id="results_tabcontent-by-addr">
+        
+                        </div>
+                    </div>        
+                </div> 
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to load and display user information
+        function loadUserInfo() {
+            fetch('/api/user')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const user = data.user;
+                        document.getElementById('username-display').textContent = user.username;
+                        
+                        if (user.is_admin) {
+                            document.getElementById('user-role').textContent = 'Administrator';
+                            document.getElementById('user-role').style.backgroundColor = 'rgba(220, 53, 69, 0.3)';
+                            document.getElementById('admin-btn').style.display = 'inline-block';
+                        } else {
+                            document.getElementById('user-role').textContent = 'User';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading user info:', error);
+                    document.getElementById('username-display').textContent = 'Unknown User';
+                });
+        }
+    </script>
+</body>
+
+</html>
