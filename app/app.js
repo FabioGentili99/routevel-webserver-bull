@@ -55,6 +55,11 @@ const io = new Server(server, {
     maxHttpBufferSize: 1e8
 });
 
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+});
+
+
 // Share session with Socket.io
 io.use((socket, next) => {
     sessionMiddleware(socket.request, {}, next);
