@@ -71,6 +71,23 @@ app.use("/route", isAuthenticated, route2vel_module.router);
 app.use("/admin", isAuthenticated, isAdmin, admin_module.router);
 
 // API Routes for queue status
+app.get("/api/user", isAuthenticated, (req, res) => {
+    if (req.session.user) {
+        res.json({ 
+            success: true, 
+            user: {
+                id: req.session.user.id,
+                username: req.session.user.username,
+                email: req.session.user.email,
+                is_admin: req.session.user.is_admin
+            }
+        });
+    } else {
+        res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+});
+
+// API Routes for queue status
 app.get("/api/tasks", isAuthenticated, async (req, res) => {
     try {
         const tasks = await getUserTasks(req.session.user.id);

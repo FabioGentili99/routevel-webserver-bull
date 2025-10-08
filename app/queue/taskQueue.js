@@ -242,6 +242,7 @@ const executePythonScript = (taskId, taskType, requestData, socketId, io) => {
         }
         
         // Add WebSocket room for Python script to send updates
+        script_args.push("--websocket", "http://localhost:" + (process.env.PORT));
         script_args.push("--websocket-room", socketId);
         
         // Set output directory if configured
