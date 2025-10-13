@@ -19,30 +19,39 @@ router.get('/register', (req, res) => {
 
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    
+
     try {
         const result = await loginUser(username, password);
-        
-        if (result.success) {
-            req.session.user = result.user;
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.status(500).json({ success: false, error: 'Session error' });
-                }
-                
-                // Redirect based on user role
-                const redirectUrl = result.user.is_admin ? '/admin' : '/route';
-                res.json({ success: true, redirect: redirectUrl, user: result.user });
-            });
-        } else {
-            res.status(401).json({ success: false, error: result.error });
+
+        if (!result.success) {
+            return res.status(401).json({ success: false, error: result.error });
         }
+
+        // Save user and token in the session
+        req.session.user = result.user;
+
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ success: false, error: 'Session error' });
+            }
+
+            // Redirect based on user role
+            const redirectUrl = result.user.is_admin ? '/admin' : '/route';
+
+            res.json({
+                success: true,
+                redirect: redirectUrl,
+                user: result.user
+            });
+        });
+
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ success: false, error: 'Server error' });
     }
 });
+
 
 // Handle registration
 router.post('/register', async (req, res) => {
@@ -58,7 +67,7 @@ router.post('/register', async (req, res) => {
                     console.error('Session save error:', err);
                     return res.status(500).json({ success: false, error: 'Session error' });
                 }
-                res.json({ success: true, redirect: '/route' });
+                res.json({ success: true, redirect: '/route', user: result.user  });
             });
         } else {
             res.status(400).json({ success: false, error: result.error });

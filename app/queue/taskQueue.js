@@ -244,6 +244,9 @@ const executePythonScript = (taskId, taskType, requestData, socketId, io) => {
         // Add WebSocket room for Python script to send updates
         script_args.push("--websocket", "http://localhost:" + (process.env.PORT));
         script_args.push("--websocket-room", socketId);
+        const serviceToken = process.env.WORKER_AUTH_TOKEN;
+        if (serviceToken) {
+            script_args.push("--auth-token", serviceToken);
         
         // Set output directory if configured
         let output_subdir = null;
@@ -274,67 +277,6 @@ const executePythonScript = (taskId, taskType, requestData, socketId, io) => {
         let errorOutput = '';
         let stdOutput = '';
         
-        /*
-        
-        // Handle stdout
-        child_process.stdout.on('data', (data) => {
-            const output = data.toString();
-            stdOutput += output;
-            console.log(`[Task ${taskId}] stdout:`, output);
-            
-            // Send stdout to client
-            const socket = io.sockets.sockets.get(socketId);
-            if (socket) {
-                socket.emit('request_stdout', output);
-            }
-            
-            // Try to parse JSON data from Python
-            try {
-                const lines = output.split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('{') || line.startsWith('[')) {
-                        const parsed = JSON.parse(line);
-                        
-                        // Handle different types of data from Python
-                        if (parsed.type === 'update') {
-                            if (socket) {
-                                const updateEvent = taskType === 'address' ? 'update_by_addr' : 'update';
-                                socket.emit(updateEvent, {
-                                    message: parsed.message,
-                                    progress: parsed.progress
-                                });
-                            }
-                        } else if (parsed.type === 'route') {
-                            resultData.routeData = parsed;
-                            if (socket) {
-                                const routeEvent = taskType === 'address' ? 'route_data_by_addr' : 'route_data';
-                                socket.emit(routeEvent, parsed);
-                            }
-                        } else if (parsed.type === 'sampling') {
-                            resultData.samplingData = parsed;
-                            if (socket) {
-                                const samplingEvent = taskType === 'address' ? 'route_data_by_addr' : 'route_data';
-                                socket.emit(samplingEvent, parsed);
-                            }
-                        } else if (parsed.type === 'image') {
-                            resultData.images.push(parsed);
-                            if (socket) {
-                                const imageEvent = taskType === 'address' ? 'route_data_by_addr' : 'route_data';
-                                socket.emit(imageEvent, parsed);
-                            }
-                        } else if (parsed.type === 'wc_data') {
-                            if (socket && taskType === 'address') {
-                                socket.emit('route_wc_data_by_addr', parsed);
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                // Not JSON, just regular output
-            }
-
-        
-        });*/
         
         child_process.stdout.on('data', (data) => {
             console.log(`stdout: ${data}`);

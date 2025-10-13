@@ -28,11 +28,11 @@ const sessionMiddleware = session({
         pool: pool,
         tableName: 'sessions'
     }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: process.env.SESSION_SECRET || 'secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true
     }
@@ -52,11 +52,26 @@ app.use(express.static(path.join(__dirname, '..', 'node_modules', 'bootstrap-ico
 
 // Socket.io with session
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8
+    maxHttpBufferSize: 1e8,
+    cors: {
+        origin: process.env.ALLOWED_ORIGIN || '*',
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
 });
 
 io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+    const { userId, username, isAdmin } = socket;
+    console.log(`Socket connected: ${socket.id} (User: ${username || 'unknown'}, ID: ${userId || 'n/a'})`);
+
+    // For authenticated browsers (session-based)
+    if (userId) socket.join(`user_${userId}`);
+    if (isAdmin) socket.join('admin_room');
+
+    // Handle disconnect
+    socket.on('disconnect', () => {
+        console.log(`Socket disconnected: ${socket.id} (User: ${username || 'unknown'})`);
+    });
 });
 
 
@@ -174,6 +189,7 @@ io.on("connection", (socket) => {
     const username = socket.username;
     const isAdmin = socket.isAdmin;
     
+    
     console.log(`User ${username} (ID: ${user_id}) connected with socket ID: ${client_id}`);
     
     // Join user to their personal room
@@ -249,7 +265,7 @@ io.on("connection", (socket) => {
         }
     });
     
-    // Keep existing update handlers for backward compatibility
+    // existing update handlers
     socket.on("update", (msg) => {
         route2vel_module.handlers.handle_updates(client_id, socket, msg);
     });

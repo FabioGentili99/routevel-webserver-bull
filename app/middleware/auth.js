@@ -1,84 +1,63 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 
 const saltRounds = 10;
 
-// Hash password
-const hashPassword = async (password) => {
-    return await bcrypt.hash(password, saltRounds);
-};
+// Password helpers
+const hashPassword = async (password) => bcrypt.hash(password, saltRounds);
+const verifyPassword = async (password, hash) => bcrypt.compare(password, hash);
 
-// Verify password
-const verifyPassword = async (password, hash) => {
-    return await bcrypt.compare(password, hash);
-};
-
-// Register new user
+// Register
 const registerUser = async (username, email, password) => {
     const hashedPassword = await hashPassword(password);
-    
     try {
         const result = await db.query(
-            'INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, username, email, is_admin',
+            `INSERT INTO users (username, email, password_hash, is_admin)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, username, email, is_admin`,
             [username, email, hashedPassword, false]
         );
         return { success: true, user: result.rows[0] };
     } catch (error) {
-        if (error.code === '23505') { // Unique violation
+        if (error.code === '23505') {
             return { success: false, error: 'Username or email already exists' };
         }
         throw error;
     }
 };
 
-// Login user
+// Login
 const loginUser = async (username, password) => {
     const result = await db.query(
         'SELECT id, username, email, password_hash, is_admin FROM users WHERE username = $1 OR email = $1',
         [username]
     );
-    
-    if (result.rows.length === 0) {
-        return { success: false, error: 'Invalid credentials' };
-    }
-    
+
+    if (result.rows.length === 0) return { success: false, error: 'Invalid credentials' };
     const user = result.rows[0];
-    const validPassword = await verifyPassword(password, user.password_hash);
-    
-    if (!validPassword) {
-        return { success: false, error: 'Invalid credentials' };
-    }
-    
-    // Update last login
-    await db.query(
-        'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-        [user.id]
-    );
-    
+
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) return { success: false, error: 'Invalid credentials' };
+
+    await db.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+
     delete user.password_hash;
+
     return { success: true, user };
 };
 
-// Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
-    if (req.session && req.session.user) {
-        return next();
-    }
+    if (req.session && req.session.user) return next();
     res.redirect('/auth/login');
 };
 
-// Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
-    if (req.session && req.session.user && req.session.user.is_admin) {
-        return next();
-    }
+    if (req.session?.user?.is_admin) return next();
     res.status(403).send(`
         <!DOCTYPE html>
         <html>
-        <head>
-            <title>Access Denied</title>
-            <link rel="stylesheet" href="/css/bootstrap.min.css">
-        </head>
+        <head><title>Access Denied</title><link rel="stylesheet" href="/css/bootstrap.min.css"></head>
         <body>
             <div class="container mt-5">
                 <div class="alert alert-danger">
@@ -94,17 +73,33 @@ const isAdmin = (req, res, next) => {
     `);
 };
 
-// Middleware to attach user to socket
 const attachUserToSocket = (socket, next) => {
+    // Try session (browser's cookies)
     const session = socket.request.session;
-    if (session && session.user) {
+    if (session?.user) {
         socket.userId = session.user.id;
         socket.username = session.user.username;
         socket.isAdmin = session.user.is_admin;
-        next();
-    } else {
-        next(new Error('Authentication error'));
+        return next();
     }
+
+    // Fallback to JWT (Python worker)
+    const token = socket.handshake.auth?.token;
+    if (token) {
+        try {
+            const payload = jwt.verify(token, process.env.JWT_SECRET);
+                if (payload.role === 'worker' && payload.service === 'route2vel') {
+                    socket.isWorker = true;
+                    socket.username = 'python_worker';
+                    return next();
+                } 
+            }catch (err) {
+            console.error('JWT verification failed:', err.message);
+            return next(new Error('Authentication error'));
+        }
+    }
+
+    next(new Error('Authentication error'));
 };
 
 module.exports = {
