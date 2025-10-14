@@ -129,6 +129,47 @@ app.get("/api/queue/position/:taskId", isAuthenticated, async (req, res) => {
 });
 
 
+app.get("/api/tasks/:id", isAuthenticated, async (req, res) => {
+    try {
+        const taskId = parseInt(req.params.id);
+        const userId = req.session.user.id;
+        const isAdmin = req.session.user.is_admin;
+        
+        // Users can only see their own tasks, admins can see all tasks
+        let query;
+        let params;
+        
+        if (isAdmin) {
+            query = `SELECT t.*, u.username 
+                     FROM tasks t 
+                     JOIN users u ON t.user_id = u.id 
+                     WHERE t.id = $1`;
+            params = [taskId];
+        } else {
+            query = `SELECT t.*, u.username 
+                     FROM tasks t 
+                     JOIN users u ON t.user_id = u.id 
+                     WHERE t.id = $1 AND t.user_id = $2`;
+            params = [taskId, userId];
+        }
+        
+        const result = await db.query(query, params);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Task not found or access denied' 
+            });
+        }
+        
+        res.json({ success: true, task: result.rows[0] });
+    } catch (error) {
+        console.error('Error fetching task details:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+
 // Root redirects
 app.get("/", (req, res) => {
     if (!req.session.user) {
