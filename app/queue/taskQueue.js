@@ -441,6 +441,5 @@ module.exports = {
     processTask,
     getQueueStats,
     getUserTasks,
-    getAllTasks,
     getQueuePosition
 };

@@ -15,7 +15,7 @@ const auth_module = require("./routes/auth_route.js");
 
 const { isAuthenticated, isAdmin, attachUserToSocket } = require('./middleware/auth');
 
-const { processTask, addTask, getQueuePosition, getUserTasks, getAllTasks } = require('./queue/taskQueue');
+const { processTask, addTask, getQueuePosition, getUserTasks } = require('./queue/taskQueue');
 
 const app = express();
 const port = process.env.PORT || 3000;
