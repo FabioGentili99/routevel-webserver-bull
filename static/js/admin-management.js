@@ -46,7 +46,7 @@ function initAdminSocket() {
 }
 
 function fetchAllTasks(){
-    fetch('/api/admin/tasks')
+    fetch('/admin/api/admin/tasks')
     .then(response => response.json())
     .then(data => {
         console.log("All tasks:", data);
@@ -323,7 +323,7 @@ function cancelTask(taskId) {
         return;
     }
     
-    fetch(`/api/admin/tasks/${taskId}/cancel`, {
+    fetch(`/admin/api/admin/tasks/${taskId}/cancel`, {
         method: 'POST'
     })
     .then(response => response.json())

@@ -31,7 +31,7 @@ router.get("/logout", (req, res) => {
 });
 
 
-app.get("/api/admin/tasks", async (req, res) => {
+router.get("/api/admin/tasks", async (req, res) => {
     try {
         const tasks = await getAllTasks();
         res.json({ success: true, tasks });
@@ -41,7 +41,7 @@ app.get("/api/admin/tasks", async (req, res) => {
     }
 });
 
-app.get("/api/admin/users", async (req, res) => {
+router.get("/api/admin/users", async (req, res) => {
     try {
         const result = await db.query(
             `SELECT 
