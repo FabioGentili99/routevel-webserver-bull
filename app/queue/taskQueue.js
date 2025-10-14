@@ -277,6 +277,7 @@ const executePythonScript = (taskId, taskType, requestData, socketId, io) => {
         let errorOutput = '';
         let stdOutput = '';
         
+
         
         child_process.stdout.on('data', (data) => {
             console.log(`stdout: ${data}`);
@@ -322,8 +323,8 @@ const executePythonScript = (taskId, taskType, requestData, socketId, io) => {
             console.error(`[Task ${taskId}] Process error:`, error);
             reject(error);
         });
-    });
-};
+    }});
+}
 
 // Cancel task
 const cancelTask = async (taskId) => {

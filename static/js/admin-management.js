@@ -206,23 +206,117 @@ function fetchQueueStats() {
 }
 
 function viewTaskDetails(taskId) {
-    // Create modal to show task details
-    //fetch(`/api/admin/tasks/${taskId}`)
     fetch(`/api/tasks/${taskId}`)
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             showTaskDetailsModal(data.task);
+        } else {
+            showNotification(data.error || 'Failed to load task details', 'danger');
         }
     })
     .catch(error => {
         console.error('Error fetching task details:', error);
+        showNotification('Error loading task details: ' + error.message, 'danger');
     });
 }
 
 function showTaskDetailsModal(task) {
-    alert(`Task ${task.id} Details:\n\nUser: ${task.username}\nType: ${task.task_type}\nStatus: ${task.status}\n\nRequest Data: ${JSON.stringify(task.request_data, null, 2)}`);
+    // Create a Bootstrap modal
+    const modalHtml = `
+        <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-labelledby="taskDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="taskDetailModalLabel">Task ${task.id} Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%">Task ID</th>
+                                    <td>${task.id}</td>
+                                </tr>
+                                <tr>
+                                    <th>User</th>
+                                    <td>${task.username}</td>
+                                </tr>
+                                <tr>
+                                    <th>Task Type</th>
+                                    <td><span class="badge bg-info">${task.task_type}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Status</th>
+                                    <td>${getStatusBadge(task.status)}</td>
+                                </tr>
+                                <tr>
+                                    <th>Created At</th>
+                                    <td>${new Date(task.created_at).toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <th>Started At</th>
+                                    <td>${task.started_at ? new Date(task.started_at).toLocaleString() : 'Not started'}</td>
+                                </tr>
+                                <tr>
+                                    <th>Completed At</th>
+                                    <td>${task.completed_at ? new Date(task.completed_at).toLocaleString() : 'Not completed'}</td>
+                                </tr>
+                                ${task.error_message ? `
+                                <tr>
+                                    <th>Error Message</th>
+                                    <td class="text-danger">${task.error_message}</td>
+                                </tr>
+                                ` : ''}
+                                <tr>
+                                    <th>Request Data</th>
+                                    <td><pre class="bg-light p-2 rounded">${JSON.stringify(task.request_data, null, 2)}</pre></td>
+                                </tr>
+                                ${task.result_data ? `
+                                <tr>
+                                    <th>Result Data</th>
+                                    <td><pre class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">${JSON.stringify(task.result_data, null, 2)}</pre></td>
+                                </tr>
+                                ` : ''}
+                                ${task.output_dir ? `
+                                <tr>
+                                    <th>Output Directory</th>
+                                    <td><code>${task.output_dir}</code></td>
+                                </tr>
+                                ` : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('taskDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
+    modal.show();
+    
+    document.getElementById('taskDetailModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
 }
+
 
 function cancelTask(taskId) {
     if (!confirm('Are you sure you want to cancel this task?')) {

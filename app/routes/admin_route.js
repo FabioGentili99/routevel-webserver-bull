@@ -30,6 +30,41 @@ router.get("/logout", (req, res) => {
     });
 });
 
+
+app.get("/api/admin/tasks", async (req, res) => {
+    try {
+        const tasks = await getAllTasks();
+        res.json({ success: true, tasks });
+    } catch (error) {
+        console.error('Error fetching all tasks:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+app.get("/api/admin/users", async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT 
+                u.id, 
+                u.username, 
+                u.email, 
+                u.is_admin, 
+                u.created_at, 
+                u.last_login,
+                COUNT(t.id) as task_count
+             FROM users u
+             LEFT JOIN tasks t ON u.id = t.user_id
+             GROUP BY u.id, u.username, u.email, u.is_admin, u.created_at, u.last_login
+             ORDER BY u.created_at DESC`
+        );
+        
+        res.json({ success: true, users: result.rows });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
 // Get task details for a specific task
 router.get("/api/tasks/:id", async (req, res) => {
     try {
