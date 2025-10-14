@@ -277,12 +277,6 @@ function showTaskDetailsModal(task) {
                                     <th>Request Data</th>
                                     <td><pre class="bg-light p-2 rounded">${JSON.stringify(task.request_data, null, 2)}</pre></td>
                                 </tr>
-                                ${task.result_data ? `
-                                <tr>
-                                    <th>Result Data</th>
-                                    <td><pre class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">${JSON.stringify(task.result_data, null, 2)}</pre></td>
-                                </tr>
-                                ` : ''}
                                 ${task.output_dir ? `
                                 <tr>
                                     <th>Output Directory</th>

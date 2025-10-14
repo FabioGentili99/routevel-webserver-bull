@@ -228,10 +228,14 @@ function displayUserTaskHistory(tasks) {
                 <td>${statusBadge}</td>
                 <td>${createdAt}</td>
                 <td>
-                    ${task.status === 'success' ? 
-                        `<button class="btn btn-sm btn-primary" onclick="reloadTask(${task.id})">
-                            <i class="bi bi-arrow-clockwise"></i> Reload
+                    ${task.status === 'success' || task.status === 'error' ? 
+                        `<button class="btn btn-sm btn-primary" onclick="rerunTask(${task.id})" title="Re-run this task with the same parameters">
+                            <i class="bi bi-arrow-repeat"></i> Re-run
                         </button>` : 
+                        task.status === 'executing' || task.status === 'waiting' ?
+                        `<button class="btn btn-sm btn-secondary" disabled>
+                            <i class="bi bi-hourglass-split"></i> ${task.status === 'waiting' ? 'Waiting' : 'Running'}
+                        </button>` :
                         ''
                     }
                 </td>
@@ -241,6 +245,109 @@ function displayUserTaskHistory(tasks) {
         
         historyList.appendChild(table);
     }
+}
+
+
+function showNotification(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.classList.add('alert', `alert-${type}`, 'alert-dismissible', 'fade', 'show', 'position-fixed', 'top-0', 'end-0', 'm-3');
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+function rerunTask(taskId) {
+    if (!socket) {
+        showNotification('Not connected to server. Please refresh the page.', 'danger');
+        return;
+    }
+    
+    showNotification('Re-running task ' + taskId + '...', 'info');
+    
+    // Fetch the task details
+    fetch(`/api/tasks/${taskId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to fetch task');
+            }
+            
+            const task = data.task;
+            
+            // Parse the request data
+            const requestData = typeof task.request_data === 'string' 
+                ? JSON.parse(task.request_data) 
+                : task.request_data;
+            
+            console.log('Re-running task with data:', requestData);
+            
+            // Clear current results
+            hideResults();
+            hideResultsAddr();
+            
+            // Clear map layers
+            if (active_path) map.removeLayer(active_path);
+            if (active_path_addr && mapAddr) mapAddr.removeLayer(active_path_addr);
+            if (sampling_circles.length > 0) {
+                sampling_circles.forEach(circle => map.removeLayer(circle));
+                sampling_circles = [];
+            }
+            if (route_circles.length > 0) {
+                route_circles.forEach(circle => map.removeLayer(circle));
+                route_circles = [];
+            }
+            
+            // Determine task type and submit
+            if (task.task_type === 'coordinates') {
+                // Switch to coordinates tab
+                const geoTab = document.getElementById('geo-input-tab');
+                if (geoTab) {
+                    const tab = new bootstrap.Tab(geoTab);
+                    tab.show();
+                }
+                
+                // Activate progress bar
+                __activate_progress();
+                
+                // Submit the request
+                socket.emit("get_route", requestData);
+                
+                showNotification('Task re-submitted with coordinates!', 'success');
+                
+            } else if (task.task_type === 'address') {
+                // Switch to address tab
+                const addrTab = document.getElementById('address-input-tab');
+                if (addrTab) {
+                    const tab = new bootstrap.Tab(addrTab);
+                    tab.show();
+                }
+                
+                // Activate progress bar
+                __activate_progress_addr();
+                
+                // Submit the request
+                socket.emit("get_route_by_addr", requestData);
+                
+                showNotification('Task re-submitted with addresses!', 'success');
+            }
+            
+        })
+        .catch(error => {
+            console.error('Error re-running task:', error);
+            showNotification('Failed to re-run task: ' + error.message, 'danger');
+        });
 }
 
 function getTaskStatusBadge(status) {
@@ -253,9 +360,7 @@ function getTaskStatusBadge(status) {
     return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
 }
 
-function reloadTask(taskId) {
-    console.log('Reloading task', taskId);
-}
+
 
 function handle_std_data(stdout_data){
     __log_to_console(stdout_data)
