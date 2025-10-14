@@ -41,6 +41,19 @@ router.get("/api/tasks", async (req, res) => {
     }
 });
 
+const getAllTasks = async (limit = 100) => {
+    const result = await db.query(
+        `SELECT t.*, u.username 
+         FROM tasks t 
+         JOIN users u ON t.user_id = u.id 
+         ORDER BY t.created_at DESC 
+         LIMIT $1`,
+        [limit]
+    );
+    return result.rows;
+};
+
+
 router.get("/api/users", async (req, res) => {
     try {
         const result = await db.query(

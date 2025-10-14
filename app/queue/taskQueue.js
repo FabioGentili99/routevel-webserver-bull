@@ -412,18 +412,6 @@ const getUserTasks = async (userId, limit = 10) => {
     return result.rows;
 };
 
-// Get all tasks (admin)
-const getAllTasks = async (limit = 100) => {
-    const result = await db.query(
-        `SELECT t.*, u.username 
-         FROM tasks t 
-         JOIN users u ON t.user_id = u.id 
-         ORDER BY t.created_at DESC 
-         LIMIT $1`,
-        [limit]
-    );
-    return result.rows;
-};
 
 // Get queue position
 const getQueuePosition = async (taskId) => {
