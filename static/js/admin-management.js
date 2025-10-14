@@ -46,7 +46,7 @@ function initAdminSocket() {
 }
 
 function fetchAllTasks(){
-    fetch('/admin/api/admin/tasks')
+    fetch('/admin/api/tasks')
     .then(response => response.json())
     .then(data => {
         console.log("All tasks:", data);
@@ -206,7 +206,7 @@ function fetchQueueStats() {
 }
 
 function viewTaskDetails(taskId) {
-    fetch(`/api/tasks/${taskId}`)
+    fetch(`/admin/api/tasks/${taskId}`)
     .then(response => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -323,7 +323,7 @@ function cancelTask(taskId) {
         return;
     }
     
-    fetch(`/admin/api/admin/tasks/${taskId}/cancel`, {
+    fetch(`/admin/api/tasks/${taskId}/cancel`, {
         method: 'POST'
     })
     .then(response => response.json())

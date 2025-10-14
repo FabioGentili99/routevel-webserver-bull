@@ -167,7 +167,7 @@
         
         // Function to fetch and display users
         function fetchUsers() {
-            fetch('/admin/api/admin/users')
+            fetch('/admin/api/users')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
